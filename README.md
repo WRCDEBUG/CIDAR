@@ -55,6 +55,8 @@ Download each benchmark from its original source and place it under `data2/`.
 Set `TB_ROOT` and `THIRD_ROOT` if the third-party baseline outputs live outside
 `third_party/`, and `LLVIP_ROOT` for the optional LLVIP night-image check.
 
+The SEA-RAFT optical-flow checkpoint can be downloaded with bash src/script/download_searaft_ckpt.sh.
+
 ## Training and evaluation
 
 Entry points:
@@ -79,6 +81,8 @@ five-sequence holdout.
 `results/dar_real_video_stride20_summary.json` aggregates them and
 `results/dar_real_video_stride20_manifest.json` records the command, git commit,
 checkpoint SHA-256, stride, seed and runtime.
+
+results/per_window_results.csv provides the same per-window table in flat CSV form for quick inspection.
 
 ## License
 
