@@ -1,0 +1,70 @@
+{
+  "created_utc": "2026-10-20T09:37:38.850342+00:00",
+  "command": "/home/ubuntu/miniconda3/envs/videofusion/bin/python audit/run_dar_real_video_stride20.py --datasets VTMOT,HDO",
+  "git_commit": "e8fe391a22f33d9f833bff88fb0d2a982cdeac27",
+  "eval_manifest_path": "runs/00_contract/eval_manifest.json",
+  "eval_manifest_sha256": "26ff550f16100522021d053771223f80b783ad977b96c0e9a17431699e7566d2",
+  "base_checkpoint": {
+    "VTMOT": {
+      "path": "output/MAVFusion-M3SVD/checkpoint/latest/model.pth",
+      "sha256": "7b3b5001f042bcff19961d1bf8ec41e9db5c599c6cb4ec308e5628048502650c"
+    },
+    "HDO": {
+      "path": "output/MAVFusion-HDO/checkpoint/latest/model.pth",
+      "sha256": "7b3b5001f042bcff19961d1bf8ec41e9db5c599c6cb4ec308e5628048502650c"
+    }
+  },
+  "dar_checkpoint": {
+    "path": "output/pr1/stage2_cross_noblur_long.pth",
+    "sha256": "b4e713e44d6a0697468722b252429df1c38c3ca5293899d30e22a5fabfec0073",
+    "est_mode": "cross"
+  },
+  "degradations": [
+    "none",
+    "noise10",
+    "noise20",
+    "dark",
+    "blur"
+  ],
+  "degradation_seed": 4242,
+  "window_length_frames": 5,
+  "scored_frames_per_window": 1,
+  "frame_padding": true,
+  "window_stride": 20,
+  "datasets": {
+    "VTMOT": {
+      "sequences": [
+        "photo-0310-53",
+        "LasHeR-056",
+        "photo-0318-37",
+        "wurenji-0303-09",
+        "photo-0310-35"
+      ],
+      "dataset_len_frames": 4128,
+      "n_windows": 207,
+      "stride": 20
+    },
+    "HDO": {
+      "sequences": [
+        "seq_25",
+        "seq_11",
+        "seq_3",
+        "seq_9",
+        "seq_23"
+      ],
+      "dataset_len_frames": 1350,
+      "n_windows": 68,
+      "stride": 20
+    }
+  },
+  "elapsed_seconds": 1041.0,
+  "environment": {
+    "python": "3.10.22",
+    "torch": "2.5.1+cu121",
+    "cuda": "12.1",
+    "cudnn": 90100,
+    "gpu": "NVIDIA A100 80GB PCIe",
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.35"
+  },
+  "protocol": "real frames; synthetic degradation added on top; QABF against the clean centre frame; recovery = (DAR-base)/(clean_base-base)"
+}

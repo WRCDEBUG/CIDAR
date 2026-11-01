@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+"""Emit the reproduction table (LaTeX + Markdown) with its mandatory notes.
+
+Inputs
+  runs/00_contract/eval_manifest.json                  sequence sets, paper values
+  output/pr1/merged/table1_local_vs_paper.csv          local vs paper, 8 metrics
+Outputs
+  runs/00_contract/table1_reproduction.tex             paste-ready table float
+  runs/00_contract/table1_reproduction.md              same content, readable
+  runs/00_contract/metric_conventions_table.md         implementation/convention table
+
+The agreement classification is pre-registered here and must not be tuned after
+seeing method results:
+
+    |max delta| <= 0.02  -> reproduced
+    |max delta| <= 0.06  -> close
+    otherwise            -> differs (a documented cause is required)
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+
+METRICS = ("QG", "QM", "QP", "QS", "QCB", "QABF", "VIF", "MS2R")
+LATEX_NAMES = {"QABF": r"$Q^{AB/F}$", "QM": r"$Q_M$"}
+DATASET_ORDER = ("M3SVD", "HDO", "VTMOT")
+
+REPRODUCED, CLOSE, DIFFERS = 0.02, 0.06, None
+
+# Pre-registered annotations.  Keys are (dataset, metric) or (metric,).
+PER_CELL_MARKS = {("M3SVD", "QM"): r"$^\dagger$", ("VTMOT", "MS2R"): r"$^\ddagger$"}
+
+NOTES_ZH = [
+    ("", "本地结果基于自冻结的 5 条序列。三个数据集的 data_split/IVF/*/split.json 均为 train=[]，"
+         "论文实际使用的测试序列无法还原，因此差异同时包含序列子集差异，不能与论文数值逐格直接比较。"),
+    (r"$^\dagger$", "论文 M3SVD 的 Q_M = 1.1544 大于 1，且高于表 1 内所有其它方法（最大 0.8126），"
+                    "属离群值，不作为优化目标。"),
+    (r"$^\ddagger$", "MS2R 在 VTMOT 上本地与论文方向相反（0.2067 对 0.8301）。实现已证明与 UniVF 参考一致，"
+                     "差异只能来自序列子集与分辨率混用（本地 VTMOT 同时含 481x631 与 576x768）。"
+                     "跨数据集比较 MS2R 前需先确认真实测试序列。"),
+    ("", "VIF 与 MS2R 采用 UniVF（VF-Bench, NeurIPS 2025 Spotlight）参考实现；"
+         "其余 6 项由 MATLAB 计算。实现与输入约定的完整列表见 metric_conventions_table.md。"),
+    ("", "MS2R 目前仅作为保护性指标报告，不作为主终点。"),
+]
+
+NOTES_EN = [
+    ("", "Local results use a self-frozen set of five sequences per dataset. All three "
+         "data_split/IVF/*/split.json files have train=[], so the paper's test sequences cannot be "
+         "recovered; the differences therefore include sequence-subset effects and must not be "
+         "compared cell by cell against the reported values."),
+    (r"$^\dagger$", "The paper's M3SVD $Q_M$ = 1.1544 exceeds 1 and is higher than every other method "
+                    "in its Table 1 (max 0.8126); it is an outlier and is not used as a target."),
+    (r"$^\ddagger$", "MS2R on VTMOT has the opposite sign locally (0.2067 vs 0.8301). The implementation is "
+                     "identical to the UniVF reference, so the gap can only come from the sequence subset and "
+                     "the mixed resolutions (481x631 and 576x768). Pin down the real test sequences before "
+                     "comparing MS2R across datasets."),
+    ("", "VIF and MS2R use the UniVF (VF-Bench, NeurIPS 2025 Spotlight) reference implementation; the other "
+         "six metrics are computed in MATLAB. See metric_conventions_table.md for the full list."),
+    ("", "MS2R is reported as a protection metric only, not as a primary endpoint."),
+]
+
+CAPTION = {
+    "zh": r"复现结果与论文报告值的对比（视频等权）。本地为自冻结的 5 条序列，并非论文测试集，"
+          r"差异同时包含序列子集差异。",
+    "en": r"Reproduction against the reported values (video-equal). The local numbers use a "
+          r"self-frozen set of five sequences per dataset rather than the paper's test set, so the "
+          r"differences include sequence-subset effects.",
+}
+
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--manifest", default="runs/00_contract/eval_manifest.json")
+    p.add_argument("--merged", default="output/pr1/merged/table1_local_vs_paper.csv")
+    p.add_argument("--out_dir", default="runs/00_contract")
+    return p.parse_args()
+
+
+def classify(values):
+    worst = max(abs(v) for v in values.values())
+    if worst <= REPRODUCED:
+        return "reproduced", worst
+    if worst <= CLOSE:
+        return "close", worst
+    return "differs", worst
+
+
+def latex_escape(text: str) -> str:
+    """Escape LaTeX specials outside of $...$ math spans, keeping the $ intact."""
+    parts = text.split("$")
+    out = []
+    for i, chunk in enumerate(parts):
+        if i % 2 == 1:                      # odd index == inside math
+            out.append(chunk)
+        else:
+            for a, b in (("\\", r"\textbackslash{}"), ("_", r"\_"), ("%", r"\%"),
+                         ("&", r"\&"), ("#", r"\#"), ("~", r"\textasciitilde{}")):
+                chunk = chunk.replace(a, b)
+            out.append(chunk)
+        if i < len(parts) - 1:
+            out.append("$")
+    return "".join(out)
+
+
+def render(lang, data, status):
+    notes = NOTES_EN if lang == "en" else NOTES_ZH
+    header = " & ".join(["Dataset", "Method"] + [LATEX_NAMES.get(m, m) for m in METRICS])
+    lines = [
+        r"% Generated by tools/make_table1.py -- do not edit by hand.",
+        r"% Requires: \usepackage{booktabs} \usepackage{multirow}",
+        r"\begin{table*}[t]",
+        r"\centering",
+        r"\small",
+        r"\caption{" + CAPTION[lang] + "}",
+        r"\label{tab:reproduction}",
+        r"\begin{tabular}{ll" + "r" * len(METRICS) + "}",
+        r"\toprule",
+        header + r" \\",
+        r"\midrule",
+    ]
+    for ds in DATASET_ORDER:
+        if ds not in data:
+            continue
+        d = data[ds]
+        n = len(d["sequences"].split(","))
+        lines.append(r"\multirow{3}{*}{" + ds + r"} & Ours (" + f"{n} seqs" + r") & " +
+                     " & ".join(f"{d['local'][m]:.4f}" for m in METRICS) + r" \\")
+        lines.append(" & Paper & " + " & ".join(
+            f"{d['paper'][m]:.4f}" + PER_CELL_MARKS.get((ds, m), "") for m in METRICS) + r" \\")
+        lines.append(" & $\\Delta$ & " + " & ".join(
+            ("$+$" if d['diff'][m] >= 0 else "$-$") + f"{abs(d['diff'][m]):.4f}" for m in METRICS) + r" \\")
+        if ds != DATASET_ORDER[-1]:
+            lines.append(r"\midrule")
+    lines += [r"\bottomrule", r"\end{tabular}", r"\vspace{2pt}",
+              r"\begin{minipage}{\textwidth}", r"\footnotesize"]
+    for mark, text in notes:
+        lines.append(("" if not mark else mark + " ") + latex_escape(text) + r" \\")
+    lines += [r"\end{minipage}", r"\end{table*}", ""]
+    return "\n".join(lines)
+
+
+def main():
+    args = parse_args()
+    manifest = json.loads((REPO / args.manifest).read_text())
+    rows = list(csv.DictReader((REPO / args.merged).open()))
+
+    data = {}
+    for row in rows:
+        ds = row["dataset"]
+        local = {m: float(row[f"local_{m}"]) for m in METRICS}
+        paper = {m: float(row[f"paper_{m}"]) for m in METRICS}
+        data[ds] = {"local": local, "paper": paper,
+                    "diff": {m: local[m] - paper[m] for m in METRICS},
+                    "sequences": row["sequences"], "set": row["set"]}
+
+    status = {}
+    for m in METRICS:
+        status[m] = classify({ds: data[ds]["diff"][m] for ds in data})
+
+    # ---------------- LaTeX ----------------
+    out_dir = REPO / args.out_dir
+    (out_dir / "table1_reproduction.tex").write_text(render("en", data, status))
+    (out_dir / "table1_reproduction_zh.tex").write_text(render("zh", data, status))
+    tex = (out_dir / "table1_reproduction.tex").read_text()
+
+    # ---------------- Markdown ----------------
+    md = ["# 复现表（视频等权，8 指标）", "",
+          "| 数据集 | 方法 | " + " | ".join(METRICS) + " |",
+          "|---|---|" + "---|" * len(METRICS)]
+    for ds in DATASET_ORDER:
+        if ds not in data:
+            continue
+        d = data[ds]
+        md.append(f"| {ds} | Ours | " + " | ".join(f"{d['local'][m]:.4f}" for m in METRICS) + " |")
+        md.append("| | Paper | " + " | ".join(
+            f"{d['paper'][m]:.4f}" + PER_CELL_MARKS.get((ds, m), "") for m in METRICS) + " |")
+        md.append("| | Δ | " + " | ".join(
+            f"{d['diff'][m]:+.4f}" for m in METRICS) + " |")
+    md += ["", "## 复现判定（预登记阈值：≤0.02 复现 / ≤0.06 接近 / 其余 不一致）", "",
+           "| 指标 | 最大绝对偏差 | 判定 |", "|---|---:|---|"]
+    for m in METRICS:
+        label, worst = status[m]
+        md.append(f"| {m} | {worst:.4f} | {label} |")
+    md += ["", "## 必读标注", ""]
+    for mark, text in NOTES_ZH:
+        md.append(f"- {mark + ' ' if mark else ''}{text}")
+    (REPO / args.out_dir / "table1_reproduction.md").write_text("\n".join(md) + "\n")
+
+    # ---------------- conventions table ----------------
+    conv = manifest["metrics"]
+    c = ["# 度量实现与输入约定（最终版）", "",
+         "| 指标 | 实现 | 语言 | 输入约定 | 状态 | 复现判定 |", "|---|---|---|---|---|---|"]
+    for m in METRICS:
+        spec = conv.get(m, {})
+        lang = (spec.get("language") or ("MATLAB" if m in ("QG", "QM", "QP", "QS", "QCB", "QABF") else "Python")).capitalize()
+        fn = spec.get("function", "-")
+        scale = spec.get("inputs") or spec.get("definition") or spec.get("description", "-")
+        st = spec.get("status", "pinned")
+        label, worst = status[m]
+        c.append(f"| **{m}** | `{fn}` | {lang} | {scale} | {st} | {label} ({worst:.4f}) |")
+    c += ["", "来源：`runs/00_contract/eval_manifest.json`；判定阈值由 `tools/make_table1.py` 预登记。"]
+    (REPO / args.out_dir / "metric_conventions_table.md").write_text("\n".join(c) + "\n")
+
+    for m in METRICS:
+        label, worst = status[m]
+        print(f"  {m:5} max|delta|={worst:.4f}  {label}")
+    print(f"\nwritten {(REPO/args.out_dir/'table1_reproduction.tex').relative_to(REPO)}")
+    print(f"written {(REPO/args.out_dir/'table1_reproduction.md').relative_to(REPO)}")
+    print(f"written {(REPO/args.out_dir/'metric_conventions_table.md').relative_to(REPO)}")
+
+
+if __name__ == "__main__":
+    main()

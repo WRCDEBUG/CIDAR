@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the manuscript below."
+title: "CIDAR: Cross-Modal Degradation-Aware Feature Rectification for Infrared–Visible Video Fusion"
+authors:
+  - family-names: Wang
+    given-names: Rongchao
+  - family-names: Zhou
+    given-names: Zhaofa
+  - family-names: Zhang
+    given-names: Zhili
+year: 2026
+type: software
+license: MIT
+note: "Manuscript under review at Image and Vision Computing."

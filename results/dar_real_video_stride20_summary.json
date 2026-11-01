@@ -1,0 +1,108 @@
+{
+  "VTMOT": {
+    "none": {
+      "n": 207,
+      "wins": 4,
+      "mean_baseline_QABF": 0.6478083829211193,
+      "mean_dar_QABF": 0.6209024744962629,
+      "relative_change_pct": -4.153374537009135,
+      "recovery_pct": null
+    },
+    "noise10": {
+      "n": 207,
+      "wins": 207,
+      "mean_baseline_QABF": 0.45576770243990966,
+      "mean_dar_QABF": 0.48011855943962756,
+      "relative_change_pct": 5.34282198351439,
+      "recovery_pct": 12.680051403015375
+    },
+    "noise20": {
+      "n": 207,
+      "wins": 207,
+      "mean_baseline_QABF": 0.3530675348761029,
+      "mean_dar_QABF": 0.3903070549582755,
+      "relative_change_pct": 10.547421216521812,
+      "recovery_pct": 12.634665445654466
+    },
+    "dark": {
+      "n": 207,
+      "wins": 43,
+      "mean_baseline_QABF": 0.5179448857934417,
+      "mean_dar_QABF": 0.4972916577103549,
+      "relative_change_pct": -3.9875339345127436,
+      "recovery_pct": -15.903797864600232
+    },
+    "blur": {
+      "n": 207,
+      "wins": 203,
+      "mean_baseline_QABF": 0.2525364131583865,
+      "mean_dar_QABF": 0.254400710764863,
+      "relative_change_pct": 0.738229225306708,
+      "recovery_pct": 0.4716493323813384
+    }
+  },
+  "HDO": {
+    "none": {
+      "n": 68,
+      "wins": 0,
+      "mean_baseline_QABF": 0.7509345508090377,
+      "mean_dar_QABF": 0.7250454613389318,
+      "relative_change_pct": -3.447582674443961,
+      "recovery_pct": null
+    },
+    "noise10": {
+      "n": 68,
+      "wins": 68,
+      "mean_baseline_QABF": 0.5324110397149694,
+      "mean_dar_QABF": 0.575667874629077,
+      "relative_change_pct": 8.124706605870813,
+      "recovery_pct": 19.79504845841815
+    },
+    "noise20": {
+      "n": 68,
+      "wins": 68,
+      "mean_baseline_QABF": 0.3988729507276918,
+      "mean_dar_QABF": 0.46066523900726186,
+      "relative_change_pct": 15.491721904641075,
+      "recovery_pct": 17.551555825824966
+    },
+    "dark": {
+      "n": 68,
+      "wins": 7,
+      "mean_baseline_QABF": 0.5761585168578478,
+      "mean_dar_QABF": 0.5313143733715977,
+      "relative_change_pct": -7.783299591024573,
+      "recovery_pct": -25.65806219105179
+    },
+    "blur": {
+      "n": 68,
+      "wins": 53,
+      "mean_baseline_QABF": 0.26986048872664553,
+      "mean_dar_QABF": 0.2706069345223276,
+      "relative_change_pct": 0.2766043295942433,
+      "recovery_pct": 0.15516234495182962
+    }
+  },
+  "ALL": {
+    "none": {
+      "n": 275,
+      "wins": 4
+    },
+    "noise10": {
+      "n": 275,
+      "wins": 275
+    },
+    "noise20": {
+      "n": 275,
+      "wins": 275
+    },
+    "dark": {
+      "n": 275,
+      "wins": 50
+    },
+    "blur": {
+      "n": 275,
+      "wins": 256
+    }
+  }
+}
